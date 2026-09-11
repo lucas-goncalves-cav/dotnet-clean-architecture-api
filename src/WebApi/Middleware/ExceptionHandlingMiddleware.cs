@@ -9,11 +9,16 @@ public sealed class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+    private readonly IHostEnvironment _environment;
 
-    public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
+    public ExceptionHandlingMiddleware(
+        RequestDelegate next,
+        ILogger<ExceptionHandlingMiddleware> logger,
+        IHostEnvironment environment)
     {
         _next = next;
         _logger = logger;
+        _environment = environment;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -30,11 +35,11 @@ public sealed class ExceptionHandlingMiddleware
         catch (Exception exception)
         {
             _logger.LogError(exception, "Unhandled exception on {Path}", context.Request.Path);
-            await WriteProblemAsync(
-                context,
-                HttpStatusCode.InternalServerError,
-                "Unexpected error",
-                "An unexpected error occurred while processing the request.");
+            var detail = _environment.IsDevelopment()
+                ? exception.ToString()
+                : "An unexpected error occurred while processing the request.";
+
+            await WriteProblemAsync(context, HttpStatusCode.InternalServerError, "Unexpected error", detail);
         }
     }
 
